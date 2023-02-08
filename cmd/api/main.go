@@ -51,7 +51,7 @@ func main() {
 	// Create our HTTP(customised) server
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.port),
-		Handler:      mux,
+		Handler:      app.routes(),
 		IdleTimeout:  time.Minute,      // inactive connections
 		ReadTimeout:  10 * time.Second, // time to read response body or header
 		WriteTimeout: 30 * time.Second, // time to write response body or header

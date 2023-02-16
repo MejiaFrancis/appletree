@@ -2,12 +2,16 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	_ "github.com/lib/pq"
 )
 
 // A global variable to hold the application version number
@@ -20,6 +24,9 @@ const version = "1.0.0"
 type config struct {
 	port int
 	env  string // development, staging, production, etc.
+	db   struct {
+		dsn string
+	}
 }
 
 // We will use dependency injection. We will create a type that will hold
@@ -36,9 +43,17 @@ func main() {
 	// read in the flags that are needed to populate our config
 	flag.IntVar(&cfg.port, "port", 4000, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development | staging | production")
+	flag.StringVar(&cfg.db.dsn, "db_dsn", os.Getenv("APPLETREE_DB_DSN"), "PostgreSQL DSN")
 	flag.Parse()
 	// Create a logger (customised)
 	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
+	// Create the connection pool
+	db, err := openDB(cfg)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	defer db.Close()
 	// Create an instance of our application struct
 	// dependencies available
 	app := &application{
@@ -58,7 +73,23 @@ func main() {
 	}
 	// Start the customer server
 	logger.Printf("starting %s server on %s", cfg.env, srv.Addr)
-	err := srv.ListenAndServe()
+	err = srv.ListenAndServe()
 	logger.Fatal(err)
+}
 
+// The openDB() function returns a  *sql.DB connection pool
+func openDB(cfg config) (*sql.DB, error) {
+	db, err := sql.Open("postgres", cfg.db.dsn)
+	if err != nil {
+		return nil, err
+	}
+	// Create a context with a 5-seconnd timeout deadline
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = db.PingContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
 }

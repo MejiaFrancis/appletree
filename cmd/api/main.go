@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 // A global variable to hold the application version number
@@ -50,6 +50,7 @@ func main() {
 	flag.IntVar(&cfg.db.maxOpenConns, "db-max-conns", 25, "PostgreSQL max open connections")
 	flag.IntVar(&cfg.db.maxIdleConns, "db-idle-conns", 25, "PostgreSQL max idle connections")
 	flag.StringVar(&cfg.db.maxIdleTime, "db-max-idle-time", "15m", "PostgreSQL max connection idle time")
+	// flag.StringVar(&cfg.db.dsn, "dsn", os.Getenv("$MELONS_DB_DSN"), "PostgreSQL DSN") // this line is used to  allow communication between DB and API
 	flag.Parse()
 	// Create a logger (customised)
 	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
@@ -58,7 +59,7 @@ func main() {
 	if err != nil {
 		logger.Fatal(err)
 	}
-
+    // close the database connection pool
 	defer db.Close()
 	// Log the successful connection pool
 	logger.Println("database connection pool establishes")
@@ -87,7 +88,7 @@ func main() {
 
 // The openDB() function returns a  *sql.DB connection pool
 func openDB(cfg config) (*sql.DB, error) {
-	db, err := sql.Open("postgres", cfg.db.dsn)
+	db, err := sql.Open("pgx", cfg.db.dsn)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +102,7 @@ func openDB(cfg config) (*sql.DB, error) {
 	// Create a context with a 5-seconnd timeout deadline
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
+    // ping the database
 	err = db.PingContext(ctx)
 	if err != nil {
 		return nil, err

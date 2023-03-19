@@ -1,4 +1,5 @@
-module appletree.francismejia.net
+module github.com/MejiaFrancis/appletree
+
 
 go 1.19
 
